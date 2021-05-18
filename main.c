@@ -20,7 +20,7 @@ typedef struct Btree{
 } btree;
 
 //Constructor to create new node
-node *node_constructor(btree *tree, int parent){
+node *node_constructor(btree *tree, node *parent){
     node *n = malloc(sizeof(node));
     if(!tree->root)
         tree->root = n;
@@ -32,6 +32,27 @@ node *node_constructor(btree *tree, int parent){
 
     return n;
 }
+
+//Function Declarations
+int node_is_root(btree *tree, node *node);
+void node_insert(node *n, int key);
+void node_transfer(node *left_node, node *right_node, int median);
+int node_biggest_key(btree *tree, node *n, node **last_node);
+node *node_sibling(node *n, int left, int *index_key);
+void node_print(node *n);
+void node_print_children(node *n);
+void btree_constructor(btree *tree, int t);
+void btree_insert(btree *tree, int key);
+void btree_insert_divide(btree *tree, node *n, int key);
+int get_key_index(node *n, int key);
+int btree_search(node *n, node **last_node, int key);
+void btree_print(btree *tree);
+void btree_print_nodes(btree *tree);
+void btree_delete(btree *tree, int key);
+void btree_delete_from_leaf(btree *tree, node *last_node, int skey);
+void btree_delete_second(btree *tree, node *n);
+void btree_delete_merge(btree *tree, node *n, node *sibling, int parent_index);
+
 
 //Checking if node is root
 int node_is_root(btree *tree, node *node){
@@ -132,14 +153,14 @@ node *node_sibling(node *n, int left, int *index_key){
 
 //Print informations of the node
 void node_print(node *n){
-    printf("\n#Node(&%i): keys: [ ", n);
+    printf("\n#Node(&%p): keys: [ ", n);
     for(int j = 0; j < n->n; j++)
         printf("%i ", n->keys[j]);
     printf("], &children:[ ");
     if(!n->leaf)
         for(int j = 0; j <= n->n; j++)
-            printf("%i ", n->children[j]);
-    printf("], &parent: %i, n: %i, leaf: %i#", n->parent, n->n, n->leaf);
+            printf("%p ", n->children[j]);
+    printf("], &parent: %p, n: %i, leaf: %i#", n->parent, n->n, n->leaf);
 }
 
 //Print children of the B-tree
@@ -147,7 +168,7 @@ void node_print_children(node *n){
     node_print(n);
     if(!n->leaf){
         int j = 0;
-        for(j; j < n->n; j++){
+        for(j; j < n->n; j += 1){
             node_print_children(n->children[j]);
         }
         node_print_children(n->children[j]);
@@ -212,9 +233,9 @@ void btree_insert_divide(btree *tree, node *n, int key){
             node *left_node = n;
             node *right_node = node_constructor(tree, parent);
 
-            int temp = 0;
+            node *temp = 0;
             for(int i = insert_key_parent + 1; i <= parent->n; i++){
-                int t = parent->children[i];
+                node *t = parent->children[i];
                 parent->children[i] = temp;
                 temp = t;
             }
@@ -260,7 +281,7 @@ int btree_search(node *n, node **last_node, int key){
 
 //Print informations of the B-tree
 void btree_print(btree *tree){
-    printf("\n###B-tree: t: %i, min: %i, max: %i, &root: %i###", tree->t, tree->min, tree->max, tree->root);
+    printf("\n###B-tree: t: %i, min: %i, max: %i, &root: %p###", tree->t, tree->min, tree->max, tree->root);
 }
 
 //Print all nodes of the tree
@@ -316,9 +337,8 @@ void btree_delete_second(btree *tree, node *n){
 
     node *parent = n->parent;
 
-    int *par;
-    node *sibling = node_sibling(n, 1, &par);
-    int parent_key_index = par;
+    int parent_key_index;
+    node *sibling = node_sibling(n, 1, &parent_key_index);
 
     if(parent_key_index != -1){
         if(sibling->n > tree->min){
@@ -329,14 +349,14 @@ void btree_delete_second(btree *tree, node *n){
             node_insert(n, parent_key);
 
             if(!sibling->leaf){
-                int sibl_child = sibling->children[sibling->n];
+                node *sibl_child = sibling->children[sibling->n];
                 n->children[n->n] = sibl_child;
 
-                int t = 0;
+                node *t_children = 0;
                 for(int j = 0; j <= n->n; j++){
-                    int temp = n->children[j];
-                    n->children[j] = t;
-                    t = temp;
+                    node *temp = n->children[j];
+                    n->children[j] = t_children;
+                    t_children = temp;
                 }
 
                 n->children[0] = sibl_child;
@@ -348,8 +368,7 @@ void btree_delete_second(btree *tree, node *n){
         }
     }
 
-    sibling = node_sibling(n, 0, &par);
-    parent_key_index = par;
+    sibling = node_sibling(n, 0, &parent_key_index);
 
     if(parent_key_index != -1){
         if(sibling->n > tree->min){
@@ -367,14 +386,14 @@ void btree_delete_second(btree *tree, node *n){
             node_insert(n, parent_key);
 
             if(!sibling->leaf){
-                int sibl_child = sibling->children[0];
+                node *sibl_child = sibling->children[0];
                 n->children[n->n] = sibl_child;
 
-                t = 0;
+                node *t_children = 0;
                 for(int j = sibling->n; j >= 0; j--){
-                    int temp = sibling->children[j];
-                    sibling->children[j] = t;
-                    t = temp;
+                    node *temp = sibling->children[j];
+                    sibling->children[j] = t_children;
+                    t_children = temp;
                 }
             }
             sibling->n -= 1;
@@ -418,11 +437,11 @@ void btree_delete_merge(btree *tree, node *n, node *sibling, int parent_index){
         t = temp;
     }
 
-    t = 0;
+    node *t_children = 0;
     for(int j = parent->n; j > parent_index; j--){
-        int temp = parent->children[j];
-        parent->children[j] = t;
-        t = temp;
+        node *temp = parent->children[j];
+        parent->children[j] = t_children;
+        t_children = temp;
     }
 
     parent->n -= 1;
@@ -438,8 +457,7 @@ void test(){
 
     btree strom;
     btree_constructor(&strom, t);
-
-    node *uzel_root = node_constructor(&strom, 0);
+    node_constructor(&strom, 0);
 
     int length = 17;
     int array[] = {26,12,42,6,51,62,5,1,70,83,97,100,103,137,159,13,15};
