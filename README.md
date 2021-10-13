@@ -1,2 +1,2 @@
 # B-Tree
-My semestrial work for algorithmization to university.
+My implementation of the B-tree.
